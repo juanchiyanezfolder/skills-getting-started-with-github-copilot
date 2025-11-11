@@ -37,17 +37,17 @@
 					card.className = 'card';
 
 					card.innerHTML = `
-						<header class="card-header">
-							<h2 class="activity-title">${escapeHtml(name)}</h2>
-							<p class="schedule">${escapeHtml(info.schedule || '')}</p>
-						</header>
-						<div class="card-body">
-							<p class="description">${escapeHtml(info.description || '')}</p>
-							<section class="participants-section">
-								<h3>Participantes (${(info.participants || []).length})</h3>
-								${renderParticipantsList(info.participants || [])}
-							</section>
-						</div>
+					<header class="card-header">
+						<h2 class="activity-title">${escapeHtml(name)}</h2>
+						<p class="schedule">${escapeHtml(info.schedule || '')}</p>
+					</header>
+					<div class="card-body">
+						<p class="description">${escapeHtml(info.description || '')}</p>
+						<section class="participants-section">
+							<h3>Participantes (${(info.participants || []).length})</h3>
+							${renderParticipantsList(info.participants || [], name)}
+						</section>
+					</div>
 					`;
 					container.appendChild(card);
 				});
@@ -59,9 +59,14 @@
 			}
 		}
 
-		function renderParticipantsList(list) {
+		function renderParticipantsList(list, activityName) {
 			if (!list.length) return '<p class="no-participants">Aún no hay participantes.</p>';
-			const items = list.map(email => `<li>${escapeHtml(email)}</li>`).join('');
+			const items = list.map(email => `
+				<li data-email="${escapeHtml(email)}" data-activity="${escapeHtml(activityName)}">
+					<span class="participant-name">${escapeHtml(email)}</span>
+					<button class="delete-btn" type="button" title="Unregister" aria-label="Unregister ${escapeHtml(email)}">✕</button>
+				</li>
+			`).join('');
 			return `<ul class="participants-list">${items}</ul>`;
 		}
 
@@ -77,6 +82,32 @@
 
 		// Inicializa
 		document.addEventListener('DOMContentLoaded', loadActivities);
+
+		// Event delegation for delete buttons
+		document.addEventListener('click', async (event) => {
+			if (event.target.closest('.delete-btn')) {
+				const listItem = event.target.closest('li');
+				const email = listItem.getAttribute('data-email');
+				const activityName = listItem.getAttribute('data-activity');
+				
+				try {
+					const response = await fetch(
+						`/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`,
+						{ method: 'POST' }
+					);
+					
+					if (response.ok) {
+						// Reload activities to show updated participant list
+						loadActivities();
+					} else {
+						const error = await response.json();
+						alert(`Error: ${error.detail || 'Could not unregister'}`);
+					}
+				} catch (err) {
+					alert(`Error unregistering: ${err.message}`);
+				}
+			}
+		});
 	</script>
 </body>
 </html>
